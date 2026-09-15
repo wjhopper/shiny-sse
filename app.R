@@ -28,8 +28,10 @@ server <- function(input, output, session) {
   dataset <- read.csv("ncbirths.csv")
   dataset <- dataset[!is.na(dataset$weight), ]
   
+  weight_sd <- sd(dataset$weight)
+  
   display_data <- dataset[c(1:9, nrow(dataset)), "weight", drop=FALSE]
-  display_data$`Model Value` <- ""
+  display_data$`Estimate` <- ""
   display_data$`Error` <- ""
   display_data$`Squared Error` <- ""
   display_data$`Observation #` <- c(1:9, nrow(dataset))
@@ -55,17 +57,40 @@ server <- function(input, output, session) {
   
   output$hist <- renderPlot({
 
+    n_guesses <- length(state$guesses)
+    
     ggplot(data = dataset,
            mapping = aes(x = weight)
            ) +
       geom_histogram(bins = 30) +
-      geom_vline(xintercept = state$guesses[length(state$guesses)],
+      # geom_histogram(aes(y = after_stat(density)), bins = 30) +
+      geom_vline(xintercept = state$guesses[n_guesses],
                  color = "red"
                  ) +
-      scale_x_continuous(limits = range(dataset$weight) + c(-1, 1),
-                         oob = function(x, limits) { x }
-                         ) +
-      theme_gray(22)
+      # geom_function(fun = \(x) {
+      #                 dnorm(x,
+      #                       mean = if (n_guesses == 0) { NA } else {state$guesses[n_guesses] },,
+      #                       sd = weight_sd
+      #                       )
+      #               },
+      #               color = "red"
+      #               ) +
+      scale_x_continuous(
+        breaks = seq(2, 12, by = 2),
+        limits = range(dataset$weight) + c(-1, 1),
+        oob = function(x, limits) { x }
+        ) +
+      scale_y_continuous(
+        "\nCount",
+        breaks = c(       0,         50,        100,      150),
+        labels = c("      0", "     50",  "    100", "    150")
+      ) + 
+      theme_gray(22) # +
+      # theme(
+      #   axis.title.y = element_blank(),
+      #   axis.text.y = element_blank(),
+      #   axis.ticks.y = element_blank()
+      # )
   })
   
   output$error <- renderPlot({
@@ -73,18 +98,21 @@ server <- function(input, output, session) {
     ggplot(data = data.frame(x = state$guesses, y = state$errors),
            mapping = aes(x = x, y = y)
            ) +
-      geom_point() +
+      geom_point(size = 2) +
       geom_line() +
-      scale_x_continuous("Model Value",
-                         limits = range(dataset$weight) + c(-1, 1)
+      scale_x_continuous(limits = range(dataset$weight) + c(-1, 1),
+                         breaks = seq(2, 12, by = 2)
                          ) +
-      scale_y_continuous("Squared Error",
+      scale_y_continuous("Total Squared Error\nBetween Estimate and Data",
                          limits = c(sum(error_metric(mean(dataset$weight))),
                                     max(sum(error_metric(min(dataset$weight) - 1)),
                                         sum(error_metric(max(dataset$weight) + 1))
                                         )
-                                    )
+                                    ),
+                         labels = scales::comma_format()
                          ) +
+      # xlab(expression(paste("Estimate of ", mu))) +
+      xlab("Estimate of Birth Weight Central Tendency") +
       theme_gray(22)
   })
   
@@ -113,7 +141,7 @@ server <- function(input, output, session) {
     } else {
       x <- ""
     }
-    paste("Total Error =", format(x, digits=6, big.mark=","))
+    paste("Total Squared Error =", format(x, digits=6, big.mark=","))
   })
 }
 
