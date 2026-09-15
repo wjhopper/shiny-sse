@@ -8,7 +8,8 @@ ui <- fluidPage(
     tags$style(HTML("
      #data table, #total {
         font-size: 2em !important;
-      }"))
+      }")),
+    tags$link(rel="shortcut icon", href="favicon.png")
   ),
   
   titlePanel("Modeling The Central Tendency"),
